@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: solar-system
-        image: ${IMAGE}
+        image:  $IMAGE_NAME
         imagePullPolicy: Always
         ports:
         - containerPort: 3000
