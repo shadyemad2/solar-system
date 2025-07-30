@@ -26,28 +26,30 @@ jobs:
           push: true
           tags: ${{ vars.DOCKERHUB_USERNAME }}/ga-application:${{ github.sha }}
 
-      - name: Install envsubst
-        run: sudo apt-get update && sudo apt-get install -y gettext
-
-      - name: Replace placeholders in YAML files
-        run: |
-          export IMAGE="${{ vars.DOCKERHUB_USERNAME }}/ga-application:${{ github.sha }}"
-          export NAMESPACE="${{ vars.NAMESPACE }}"
-          export REPLICAS="${{ vars.REPLICAS }}"
-          envsubst < kubernetes/production/deployment.yaml > kubernetes/production/deployment.generated.yaml
-          envsubst < kubernetes/production/service.yaml > kubernetes/production/service.generated.yaml
-
       - name: Install kubectl
         run: |
           curl -LO "https://dl.k8s.io/release/v1.26.3/bin/linux/amd64/kubectl"
           chmod +x kubectl
           sudo mv kubectl /usr/local/bin/
 
-      - name: Configure kubeconfig
+      - name: Configure Kubeconfig
         run: |
-          echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig
-          export KUBECONFIG=$PWD/kubeconfig
-          kubectl config current-context
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          export KUBECONFIG=~/.kube/config
+          kubectl config use-context minikube
+
+      - name: Test kubectl connection
+        run: |
+          kubectl get nodes
+          kubectl get namespaces
+
+      - name: Replace variables in manifests
+        run: |
+          sed -i "s|\$IMAGE|${{ vars.DOCKERHUB_USERNAME }}/ga-application:${{ github.sha }}|g" kubernetes/production/deployment.yaml
+          sed -i "s|\$NAMESPACE|${{ vars.NAMESPACE }}|g" kubernetes/production/deployment.yaml
+          sed -i "s|\$REPLICAS|${{ vars.REPLICAS }}|g" kubernetes/production/deployment.yaml
+          sed -i "s|\$NAMESPACE|${{ vars.NAMESPACE }}|g" kubernetes/production/service.yaml
 
       - name: Create Kubernetes namespace (if not exists)
         run: |
@@ -61,9 +63,8 @@ jobs:
             --from-literal=MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Apply Kubernetes manifests
+      - name: Deploy to Kubernetes
         run: |
-          kubectl apply -f kubernetes/production/deployment.generated.yaml
-          kubectl apply -f kubernetes/production/service.generated.yaml
+          kubectl apply -f kubernetes/production/
           kubectl get all -n ${{ vars.NAMESPACE }}
 
