@@ -29,14 +29,14 @@ jobs:
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
         with:
-          version: '1.26.0'
+          version: '1.27.3'  # استخدم نسخة حديثة ومدعومة
 
       - name: Configure Kubeconfig
         run: |
           echo "${{ secrets.KUBECONFIG }}" > kubeconfig
           export KUBECONFIG=$PWD/kubeconfig
 
-      - name: Replace tokens in manifests
+      - name: Replace image placeholder in deployment.yaml
         uses: danielr1996/envsubst-action@1.1.0
         env:
           IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/ga-application:${{ github.sha }}
@@ -46,7 +46,7 @@ jobs:
           input: "kubernetes/production/deployment.yaml"
           output: "kubernetes/production/deployment.yaml"
 
-      - name: Replace tokens in service
+      - name: Replace namespace in service.yaml
         uses: danielr1996/envsubst-action@1.1.0
         env:
           NAMESPACE: ${{ vars.NAMESPACE }}
