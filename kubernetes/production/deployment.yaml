@@ -4,22 +4,21 @@ metadata:
   labels:
     app: solar-system
   name: solar-system
-  namespace: _{_NAMESPACE_}_
+  namespace: $NAMESPACE
 spec:
-  replicas: _{_REPLICAS_}_
+  replicas: $REPLICAS
   selector:
     matchLabels:
       app: solar-system
-  strategy: {}
   template:
     metadata:
       labels:
         app: solar-system
     spec:
       containers:
-      - image: _{_IMAGE_}_
+      - name: solar-system
+        image: $IMAGE
         imagePullPolicy: Always
-        name: solar-system
         ports:
         - containerPort: 3000
           name: http
@@ -27,3 +26,4 @@ spec:
         envFrom:
         - secretRef:
             name: mongo-db-creds
+
