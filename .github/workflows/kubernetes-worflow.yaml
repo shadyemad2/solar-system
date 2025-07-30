@@ -38,6 +38,6 @@ jobs:
       env:
         KUBECONFIG: ${{ github.workspace }}/kubeconfig.yaml
       run: |
-        kubectl config use-context minikube
+        kubectl config use-context github-actions-iti-2025
         kubectl apply -f kubernetes/production/
 
