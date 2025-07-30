@@ -26,25 +26,28 @@ jobs:
           push: true
           tags: ${{ vars.DOCKERHUB_USERNAME }}/ga-application:${{ github.sha }}
 
-      - name: Install kubectl manually
+      - name: Install envsubst
+        run: sudo apt-get update && sudo apt-get install -y gettext
+
+      - name: Replace placeholders in YAML files
+        run: |
+          export IMAGE="${{ vars.DOCKERHUB_USERNAME }}/ga-application:${{ github.sha }}"
+          export NAMESPACE="${{ vars.NAMESPACE }}"
+          export REPLICAS="${{ vars.REPLICAS }}"
+          envsubst < kubernetes/production/deployment.yaml > kubernetes/production/deployment.generated.yaml
+          envsubst < kubernetes/production/service.yaml > kubernetes/production/service.generated.yaml
+
+      - name: Install kubectl
         run: |
           curl -LO "https://dl.k8s.io/release/v1.26.3/bin/linux/amd64/kubectl"
           chmod +x kubectl
           sudo mv kubectl /usr/local/bin/
-          kubectl version --client
 
-      - name: Configure Kubeconfig
+      - name: Configure kubeconfig
         run: |
-          echo "${{ secrets.KUBECONFIG }}" > kubeconfig
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig
           export KUBECONFIG=$PWD/kubeconfig
-
-      - name: Replace image placeholder in deployment.yaml
-        uses: danielr1996/envsubst-action@1.1.0
-        env:
-          IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/ga-application:${{ github.sha }}
-        with:
-          input: "kubernetes/production/deployment.yaml"
-          output: "kubernetes/production/deployment.yaml"
+          kubectl config current-context
 
       - name: Create Kubernetes namespace (if not exists)
         run: |
@@ -58,8 +61,9 @@ jobs:
             --from-literal=MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Deploy to Kubernetes
+      - name: Apply Kubernetes manifests
         run: |
-          kubectl apply -f kubernetes/production/
+          kubectl apply -f kubernetes/production/deployment.generated.yaml
+          kubectl apply -f kubernetes/production/service.generated.yaml
           kubectl get all -n ${{ vars.NAMESPACE }}
 
