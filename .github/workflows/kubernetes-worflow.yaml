@@ -36,13 +36,23 @@ jobs:
           echo "${{ secrets.KUBECONFIG }}" > kubeconfig
           export KUBECONFIG=$PWD/kubeconfig
 
-      - name: Replace image placeholder in deployment.yaml
+      - name: Replace variables in deployment.yaml
         uses: danielr1996/envsubst-action@1.1.0
         env:
           IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/ga-application:${{ github.sha }}
+          NAMESPACE: ${{ vars.NAMESPACE }}
+          REPLICAS: ${{ vars.REPLICAS }}
         with:
           input: "kubernetes/production/deployment.yaml"
           output: "kubernetes/production/deployment.yaml"
+
+      - name: Replace variables in service.yaml
+        uses: danielr1996/envsubst-action@1.1.0
+        env:
+          NAMESPACE: ${{ vars.NAMESPACE }}
+        with:
+          input: "kubernetes/production/service.yaml"
+          output: "kubernetes/production/service.yaml"
 
       - name: Create Kubernetes namespace (if not exists)
         run: |
