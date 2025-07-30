@@ -36,7 +36,7 @@ jobs:
         echo "${{ secrets.KUBECONFIG }}" > kubeconfig
         export KUBECONFIG=$PWD/kubeconfig
 
-    - name: Replace tokens in YAML
+    - name: Replace tokens in deployment.yaml
       uses: danielr1996/envsubst-action@1.1.0
       env:
         NAMESPACE: ${{ vars.NAMESPACE }}
@@ -46,16 +46,24 @@ jobs:
         input: "kubernetes/production/deployment.yaml"
         output: "kubernetes/production/deployment.yaml"
 
-    - name: Create MongoDB secret
+    - name: Replace tokens in service.yaml
+      uses: danielr1996/envsubst-action@1.1.0
+      env:
+        NAMESPACE: ${{ vars.NAMESPACE }}
+      with:
+        input: "kubernetes/production/service.yaml"
+        output: "kubernetes/production/service.yaml"
+
+    - name: Create namespace and MongoDB secret
       run: |
         kubectl create ns ${{ vars.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
         kubectl -n ${{ vars.NAMESPACE }} create secret generic mongo-db-creds \
-        --from-literal=MONGO_URI=${{ vars.MONGO_URI }} \
-        --from-literal=MONGO_USERNAME=${{ vars.MONGO_USERNAME }} \
-        --from-literal=MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
-        --dry-run=client -o yaml | kubectl apply -f -
+          --from-literal=MONGO_URI=${{ vars.MONGO_URI }} \
+          --from-literal=MONGO_USERNAME=${{ vars.MONGO_USERNAME }} \
+          --from-literal=MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
+          --dry-run=client -o yaml | kubectl apply -f -
 
-    - name: Apply manifests
+    - name: Deploy to Kubernetes
       run: |
         kubectl apply -f kubernetes/production/
         kubectl get all -n ${{ vars.NAMESPACE }}
