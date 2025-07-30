@@ -26,37 +26,29 @@ jobs:
           push: true
           tags: ${{ vars.DOCKERHUB_USERNAME }}/ga-application:${{ github.sha }}
 
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: '1.24.15'  
+      - name: Install kubectl via arkade
+        run: |
+          curl -sLS https://get.arkade.dev | sudo sh
+          arkade get kubectl --version 1.26.3
+          sudo mv ~/.arkade/bin/kubectl /usr/local/bin/
+          kubectl version --client
 
       - name: Configure Kubeconfig
         run: |
           echo "${{ secrets.KUBECONFIG }}" > kubeconfig
           export KUBECONFIG=$PWD/kubeconfig
 
-      - name: Replace image placeholder in deployment.yaml
-        uses: danielr1996/envsubst-action@1.1.0
-        env:
-          IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/ga-application:${{ github.sha }}
-          NAMESPACE: ${{ vars.NAMESPACE }}
-          REPLICAS: ${{ vars.REPLICAS }}
-        with:
-          input: "kubernetes/production/deployment.yaml"
-          output: "kubernetes/production/deployment.yaml"
-
-      - name: Replace namespace in service.yaml
-        uses: danielr1996/envsubst-action@1.1.0
-        env:
-          NAMESPACE: ${{ vars.NAMESPACE }}
-        with:
-          input: "kubernetes/production/service.yaml"
-          output: "kubernetes/production/service.yaml"
-
-      - name: Create Kubernetes namespace (if not exists)
+      - name: Replace variables in deployment file
         run: |
-          kubectl create ns ${{ vars.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+          export IMAGE="${{ vars.DOCKERHUB_USERNAME }}/ga-application:${{ github.sha }}"
+          export NAMESPACE="${{ vars.NAMESPACE }}"
+          export REPLICAS="${{ vars.REPLICAS }}"
+          envsubst < kubernetes/production/deployment.yaml > kubernetes/production/deployment-final.yaml
+          envsubst < kubernetes/production/service.yaml > kubernetes/production/service-final.yaml
+
+      - name: Create Kubernetes namespace
+        run: |
+          kubectl create namespace ${{ vars.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create MongoDB secret
         run: |
@@ -68,6 +60,7 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          kubectl apply -f kubernetes/production/
+          kubectl apply -f kubernetes/production/deployment-final.yaml
+          kubectl apply -f kubernetes/production/service-final.yaml
           kubectl get all -n ${{ vars.NAMESPACE }}
 
