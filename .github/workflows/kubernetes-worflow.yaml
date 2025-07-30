@@ -38,14 +38,15 @@ jobs:
         export KUBECONFIG=$PWD/kubeconfig
 
     - name: Replace tokens in YAML
-      uses: cschlieden/replace-tokens@v1
+      uses: hugoalh/token-replace-ghaction@v2.0.3
       with:
-        tokenPrefix: '_{_'
-        tokenSuffix: '_}_'
-        files: 'kubernetes/production/deployment.yaml;kubernetes/production/service.yaml'
-      env:
-        NAMESPACE: ${{ vars.NAMESPACE }}
-        REPLICAS: ${{ vars.REPLICAS }}
+        files: |
+          kubernetes/production/deployment.yaml
+          kubernetes/production/service.yaml
+        token: "_{_{key}_}_"
+        replace: |
+          NAMESPACE=${{ vars.NAMESPACE }}
+          REPLICAS=${{ vars.REPLICAS }}
 
     - name: Create MongoDB secret
       run: |
