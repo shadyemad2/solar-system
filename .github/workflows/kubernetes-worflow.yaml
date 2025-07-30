@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      IMAGE_NAME: shadyemad2/ga-application:${{ github.sha }}
+      IMAGE_NAME: shadyemad/ga-application:${{ github.sha }}
 
     steps:
     - name: Checkout code
